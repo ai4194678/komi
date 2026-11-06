@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Медиакоми — Угадай цену квартиры</title>
+<meta name="description" content="Игра: угадай цену квартиры в Республике Коми по объявлениям Авито">
+<link rel="preconnect" href="https://*.img.avito.st">
+<style>
+  :root{
+    --hse-blue:#012D6E;
+    --hse-blue-dark:#01214E;
+    --hse-blue-light:#EAF0F9;
+    --hse-red:#EE3F58;
+    --hse-green:#2BB673;
+    --text:#1B2A41;
+    --muted:#6B7A90;
+    --bg:#F4F6FA;
+    --card:#FFFFFF;
+    --radius:16px;
+    --shadow:0 4px 20px rgba(1,45,110,.10);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"PT Sans","Segoe UI",Roboto,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    display:flex;
+    justify-content:center;
+    line-height:1.45;
+  }
+  #app{
+    width:100%;
+    max-width:480px;
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+    background:var(--bg);
+  }
+  .screen{display:none;flex-direction:column;flex:1;animation:fadeIn .3s ease}
+  .screen.active{display:flex}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* ===== Шапка / прогресс ===== */
+  .topbar{
+    background:var(--hse-blue);
+    color:#fff;
+    padding:10px 16px calc(10px + env(safe-area-inset-top));
+    padding-top:calc(10px + env(safe-area-inset-top));
+  }
+  .brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;letter-spacing:.3px}
+  .brand .logo{
+    width:26px;height:26px;border-radius:6px;background:#fff;color:var(--hse-blue);
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex:0 0 auto;
+  }
+  .brand .logo.red{color:var(--hse-red)}
+  .progress-wrap{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .progress-track{flex:1;height:6px;background:rgba(255,255,255,.25);border-radius:3px;overflow:hidden}
+  .progress-fill{height:100%;width:0;background:#fff;border-radius:3px;transition:width .35s ease}
+  .progress-label{font-size:12px;opacity:.85;white-space:nowrap}
+
+  main{flex:1;padding:16px 16px calc(20px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
+
+  /* ===== Кнопки ===== */
+  .btn{
+    display:block;width:100%;border:none;cursor:pointer;
+    font:inherit;font-weight:700;font-size:17px;
+    padding:15px 20px;border-radius:12px;
+    background:var(--hse-blue);color:#fff;
+    transition:transform .12s ease, opacity .12s ease;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn:disabled{opacity:.4;cursor:default}
+  .btn.secondary{background:#fff;color:var(--hse-blue);border:2px solid var(--hse-blue)}
+  .btn.red{background:var(--hse-red)}
+
+  /* ===== Стартовый экран ===== */
+  #screen-start main{justify-content:center}
+  .start-hero{text-align:center;margin-bottom:24px}
+  .start-logo{
+    width:76px;height:76px;margin:0 auto 16px;border-radius:18px;
+    background:var(--hse-blue);color:#fff;font-weight:800;font-size:11px;letter-spacing:.5px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;
+    box-shadow:var(--shadow);
+  }
+  .start-logo span b{color:#fff}
+  .start-logo .red{color:#FFD9E0}
+  h1{font-size:28px;font-weight:800;color:var(--hse-blue);letter-spacing:.3px}
+  .tagline{color:var(--muted);font-size:15px;margin-top:6px}
+  .rules{
+    background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+    padding:18px;margin-bottom:20px;
+  }
+  .rules h2{font-size:16px;color:var(--hse-blue);margin-bottom:10px}
+  .rules ol{padding-left:20px;font-size:14.5px;color:var(--text)}
+  .rules li{margin-bottom:8px}
+  .rules li:last-child{margin-bottom:0}
+  .rules b{color:var(--hse-blue)}
+  .score-hint{
+    margin-top:12px;padding:10px 12px;border-radius:10px;
+    background:var(--hse-blue-light);font-size:13px;color:var(--hse-blue-dark);
+  }
+
+  /* ===== Экран лота ===== */
+  .gallery{
+    position:relative;border-radius:var(--radius);overflow:hidden;
+    background:#DDE3EC;box-shadow:var(--shadow);flex:0 0 auto;
+  }
+  .gallery-track{
+    display:flex;overflow-x:auto;scroll-snap-type:x mandatory;
+    scrollbar-width:none;
+  }
+  .gallery-track::-webkit-scrollbar{display:none}
+  .gallery-track img{
+    width:100%;flex:0 0 100%;aspect-ratio:4/3;object-fit:cover;
+    scroll-snap-align:center;background:#DDE3EC;
+  }
+  .gallery-track img[src=""]{visibility:hidden}
+  .gal-dots{
+    position:absolute;bottom:10px;left:0;right:0;display:flex;justify-content:center;gap:6px;
+  }
+  .gal-dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.5);transition:background .2s}
+  .gal-dots i.on{background:#fff}
+  .gal-count{
+    position:absolute;top:10px;right:10px;background:rgba(1,33,78,.72);color:#fff;
+    font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;
+  }
+
+  .lot-info{margin-top:14px}
+  .lot-desc{font-size:17px;font-weight:700;color:var(--text)}
+  .lot-street{font-size:14px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:5px}
+  .lot-city{display:inline-block;margin-top:8px;font-size:12px;font-weight:700;color:var(--hse-blue);
+    background:var(--hse-blue-light);padding:3px 10px;border-radius:20px}
+
+  .guess-block{
+    margin-top:auto;padding-top:16px;
+  }
+  .slider-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
+  .slider-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .slider-head .lbl{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .slider-value{font-size:24px;font-weight:800;color:var(--hse-blue);font-variant-numeric:tabular-nums}
+  input[type=range]{
+    width:100%;appearance:none;-webkit-appearance:none;height:36px;background:transparent;outline:none;margin:2px 0;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:8px;border-radius:4px;
+    background:linear-gradient(to right,var(--hse-blue) var(--fill,5%),#D8DFE9 var(--fill,5%));
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:30px;height:30px;border-radius:50%;
+    background:#fff;border:4px solid var(--hse-blue);box-shadow:0 2px 8px rgba(1,45,110,.35);
+    margin-top:-11px;cursor:grab;
+  }
+  input[type=range]::-moz-range-track{height:8px;border-radius:4px;background:#D8DFE9}
+  input[type=range]::-moz-range-progress{height:8px;border-radius:4px;background:var(--hse-blue)}
+  input[type=range]::-moz-range-thumb{
+    width:24px;height:24px;border-radius:50%;background:#fff;border:4px solid var(--hse-blue);
+    box-shadow:0 2px 8px rgba(1,45,110,.35);cursor:grab;
+  }
+  .slider-bounds{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:2px}
+  #btn-guess{margin-top:14px}
+
+  /* ===== Результат раунда ===== */
+  .verdict{
+    margin-top:14px;background:var(--card);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:16px;text-align:center;
+  }
+  .verdict .v-title{font-size:15px;font-weight:700;color:var(--muted)}
+  .verdict .v-price{font-size:34px;font-weight:800;color:var(--hse-blue);margin:4px 0 2px;font-variant-numeric:tabular-nums}
+  .verdict .v-diff{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+  .verdict .v-diff.over{color:var(--hse-red)}
+  .verdict .v-diff.under{color:var(--hse-green)}
+  .verdict .v-diff.exact{color:var(--hse-green)}
+  .points-badge{
+    display:inline-block;margin-top:12px;padding:8px 18px;border-radius:24px;
+    background:var(--hse-blue);color:#fff;font-weight:800;font-size:16px;
+  }
+  .points-badge.good{background:var(--hse-green)}
+  .points-badge.mid{background:#E8A13C}
+  .points-badge.bad{background:var(--hse-red)}
+  .v-guess{font-size:13px;color:var(--muted);margin-top:4px}
+  .link-avito{
+    display:inline-block;margin-top:12px;font-size:14px;font-weight:700;
+    color:var(--hse-blue);text-decoration:none;border-bottom:2px solid var(--hse-blue);
+    padding-bottom:1px;
+  }
+  .link-avito::after{content:" ↗"}
+  #btn-next{margin-top:14px}
+
+  /* ===== Итоги ===== */
+  .result-hero{
+    text-align:center;background:var(--hse-blue);color:#fff;border-radius:var(--radius);
+    padding:24px 16px;margin-bottom:14px;box-shadow:var(--shadow);
+  }
+  .result-hero .r-score{font-size:52px;font-weight:800;line-height:1.1}
+  .result-hero .r-max{font-size:15px;opacity:.7;font-weight:700}
+  .result-hero .r-title{font-size:22px;font-weight:800;margin-top:10px}
+  .result-hero .r-sub{font-size:13.5px;opacity:.85;margin-top:6px}
+  .result-hero .r-emoji{font-size:44px;line-height:1;margin-bottom:6px}
+  .bias-strip{
+    background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+    padding:14px 16px;margin-bottom:14px;font-size:14px;
+  }
+  .bias-strip b{color:var(--hse-blue)}
+  .rounds-list{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px}
+  .round-row{
+    display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #EEF1F6;font-size:13.5px;
+  }
+  .round-row:last-child{border-bottom:none}
+  .round-row .num{
+    width:24px;height:24px;border-radius:50%;background:var(--hse-blue-light);color:var(--hse-blue);
+    font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+  }
+  .round-row .rd-info{flex:1;min-width:0}
+  .round-row .rd-desc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700}
+  .round-row .rd-price{color:var(--muted);font-size:12px}
+  .round-row .rd-pts{font-weight:800;color:var(--hse-blue);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .round-row a{text-decoration:none;color:var(--muted);font-size:16px;flex:0 0 auto}
+  #btn-restart{margin-top:auto}
+
+  .loading{color:var(--muted);text-align:center;padding:40px 20px;font-size:15px}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ======== СТАРТОВЫЙ ЭКРАН ======== -->
+  <section class="screen" id="screen-start">
+    <div class="topbar">
+      <div class="brand"><div class="logo">МК</div>Медиакоми</div>
+    </div>
+    <main>
+      <div class="start-hero">
+        <div class="start-logo"><span>МЕДИ<b class="red">КОМИ</b></span></div>
+        <h1>Угадай цену квартиры</h1>
+        <p class="tagline">Настоящие объявления из Республики Коми</p>
+      </div>
+      <div class="rules">
+        <h2>Как играть</h2>
+        <ol>
+          <li>Смотрите <b>фотографии квартиры</b> и её описание.</li>
+          <li>Двигайте бегунок — ставьте цену, во сколько вы бы <b>оценили</b> эту квартиру.</li>
+          <li>Нажимайте «Оценить» и узнавайте <b>реальную цену</b> объявления и свою ошибку.</li>
+          <li>Так <b>10 квартир</b> — а в конце узнаете свой типаж и итоговый счёт.</li>
+        </ol>
+        <div class="score-hint">💡 Баллы за раунд: чем ближе ваша цена к реальной — тем выше балл. Точная цена — 100 баллов, промах в 2 раза и больше — 0 баллов. Максимум за игру — 1000.</div>
+      </div>
+      <button class="btn red" id="btn-start">🚀 Запуск игры</button>
+    </main>
+  </section>
+
+  <!-- ======== ЭКРАН ЛОТА ======== -->
+  <section class="screen" id="screen-round">
+    <div class="topbar">
+      <div class="brand"><div class="logo">МК</div>Медиакоми</div>
+      <div class="progress-wrap">
+        <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
+        <div class="progress-label" id="prog-label">1 / 10</div>
+      </div>
+    </div>
+    <main>
+      <div class="gallery" id="gallery">
+        <div class="gallery-track" id="gal-track"></div>
+        <div class="gal-count" id="gal-count"></div>
+        <div class="gal-dots" id="gal-dots"></div>
+      </div>
+      <div class="lot-info">
+        <div class="lot-desc" id="lot-desc"></div>
+        <div class="lot-street">📍 <span id="lot-street"></span></div>
+        <div><span class="lot-city">Инта, Республика Коми</span></div>
+      </div>
+      <div class="guess-block">
+        <div class="slider-card">
+          <div class="slider-head">
+            <span class="lbl">Ваша оценка</span>
+            <span class="slider-value" id="slider-value"></span>
+          </div>
+          <input type="range" id="slider" min="50000" max="2000000" step="5000" value="500000">
+          <div class="slider-bounds"><span>50 тыс. ₽</span><span>2 млн ₽</span></div>
+        </div>
+        <button class="btn" id="btn-guess">Оценить</button>
+      </div>
+      <div class="verdict" id="verdict" style="display:none">
+        <div class="v-title">Реальная цена объявления</div>
+        <div class="v-price" id="v-price"></div>
+        <div class="v-diff" id="v-diff"></div>
+        <div class="v-guess" id="v-guess"></div>
+        <div class="points-badge" id="v-points"></div>
+        <br>
+        <a class="link-avito" id="v-link" target="_blank" rel="noopener">Смотреть объявление на Авито</a>
+      </div>
+      <button class="btn secondary" id="btn-next" style="display:none">Следующая квартира →</button>
+    </main>
+  </section>
+
+  <!-- ======== ИТОГОВЫЙ ЭКРАН ======== -->
+  <section class="screen" id="screen-result">
+    <div class="topbar">
+      <div class="brand"><div class="logo">МК</div>Медиакоми</div>
+    </div>
+    <main>
+      <div class="result-hero" id="result-hero">
+        <div class="r-emoji" id="r-emoji"></div>
+        <div class="r-score" id="r-score"></div>
+        <div class="r-max">из 1000 возможных баллов</div>
+        <div class="r-title" id="r-title"></div>
+        <div class="r-sub" id="r-sub"></div>
+      </div>
+      <div class="bias-strip" id="bias-strip"></div>
+      <div class="rounds-list" id="rounds-list"></div>
+      <button class="btn red" id="btn-restart">🔁 Играть ещё раз</button>
+    </main>
+  </section>
+
+</div>
+<script src="data.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  const TOTAL_ROUNDS = 10;
+  const SLIDER_MIN = 50000, SLIDER_MAX = 2000000;
+  const BIAS_THRESHOLD = 0.10; // ±10% средней ошибки — «адекватный»
+
+  const listings = (window.MK_LISTINGS || []).slice();
+  const $ = id => document.getElementById(id);
+  const fmt = n => n.toLocaleString('ru-RU') + ' ₽';
+  const fmtShort = n => n >= 1000000 ? (n/1000000).toLocaleString('ru-RU',{maximumFractionDigits:2}) + ' млн' : Math.round(n/1000) + ' тыс.';
+
+  let deck = [], round = 0, answers = [], guessValue = 0;
+
+  /* ---------- Балльная система ----------
+     err = |оценка − реальная цена| / реальная цена
+     балл = round(100 × max(0, 1 − err))  → от 0 до 100 за раунд, до 1000 за игру */
+  function scoreFor(guess, real){
+    const err = Math.abs(guess - real) / real;
+    return Math.round(100 * Math.max(0, 1 - err));
+  }
+  function pointsClass(p){ return p >= 80 ? 'good' : p >= 50 ? 'mid' : 'bad'; }
+  function pointsWord(p){ return p >= 80 ? 'Отлично!' : p >= 50 ? 'Хорошо' : 'Мимо…'; }
+
+  /* ---------- Навигация по экранам ---------- */
+  function show(id){
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    $(id).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
+  /* ---------- Старт ---------- */
+  $('btn-start').addEventListener('click', startGame);
+  $('btn-restart').addEventListener('click', startGame);
+
+  function startGame(){
+    if (listings.length < TOTAL_ROUNDS){
+      $('screen-start').querySelector('main').innerHTML =
+        '<p class="loading">Недостаточно данных для игры 😢</p>';
+      return;
+    }
+    // Перемешиваем и берём 10 квартир
+    deck = listings.slice().sort(() => Math.random() - 0.5).slice(0, TOTAL_ROUNDS);
+    round = 0;
+    answers = [];
+    showRound();
+  }
+
+  /* ---------- Раунд ---------- */
+  function showRound(){
+    const lot = deck[round];
+    const done = round; // уже пройдено
+
+    $('prog-fill').style.width = (done / TOTAL_ROUNDS * 100) + '%';
+    $('prog-label').textContent = (round + 1) + ' / ' + TOTAL_ROUNDS;
+
+    // Галерея
+    const track = $('gal-track');
+    track.innerHTML = '';
+    lot.photos.forEach(src => {
+      const img = new Image();
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.alt = 'Фото квартиры';
+      img.dataset.src = src;
+      track.appendChild(img);
+    });
+    loadGalleryImage();
+    $('gal-count').textContent = lot.photos.length > 1 ? '1 / ' + lot.photos.length : '';
+
+    // Точки-индикаторы
+    const dots = $('gal-dots');
+    dots.innerHTML = '';
+    if (lot.photos.length > 1){
+      lot.photos.forEach(() => dots.appendChild(document.createElement('i')));
+      dots.firstChild.classList.add('on');
+    }
+
+    track.onscroll = () => {
+      const idx = Math.round(track.scrollLeft / track.clientWidth);
+      const capped = Math.min(idx, lot.photos.length - 1);
+      $('gal-count').textContent = lot.photos.length > 1 ? (capped + 1) + ' / ' + lot.photos.length : '';
+      dots.querySelectorAll('i').forEach((d, i) => d.classList.toggle('on', i === capped));
+    };
+
+    // Инфо
+    $('lot-desc').textContent = lot.desc;
+    $('lot-street').textContent = lot.street;
+
+    // Бегунок: стартуем со случайной цены, чтобы не было паттерна
+    const startVal = SLIDER_MIN + Math.round((Math.random() * (SLIDER_MAX - SLIDER_MIN)) / 5000) * 5000;
+    const slider = $('slider');
+    slider.value = startVal;
+    updateSlider(startVal);
+
+    // Сброс результата прошлого раунда
+    $('verdict').style.display = 'none';
+    $('btn-next').style.display = 'none';
+    $('btn-guess').style.display = 'block';
+    $('slider').disabled = false;
+
+    show('screen-round');
+  }
+
+  function updateSlider(v){
+    guessValue = +v;
+    const pct = (guessValue - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN) * 100;
+    $('slider-value').textContent = fmt(guessValue);
+    $('slider').style.setProperty('--fill', pct + '%');
+  }
+  $('slider').addEventListener('input', e => updateSlider(e.target.value));
+
+  /* ---------- Оценка ---------- */
+  $('btn-guess').addEventListener('click', () => {
+    const lot = deck[round];
+    const pts = scoreFor(guessValue, lot.price);
+    const diff = guessValue - lot.price;
+
+    answers.push({
+      desc: lot.desc, street: lot.street, link: lot.link,
+      guess: guessValue, real: lot.price, pts: pts
+    });
+
+    $('prog-fill').style.width = ((round + 1) / TOTAL_ROUNDS * 100) + '%';
+
+    // Показываем вердикт
+    $('v-price').textContent = fmt(lot.price);
+    $('v-guess').textContent = 'Ваша оценка: ' + fmt(guessValue);
+    const vd = $('v-diff');
+    if (diff === 0){
+      vd.textContent = '🎯 Точное попадание!';
+      vd.className = 'v-diff exact';
+    } else {
+      const rel = Math.abs(diff) / lot.price * 100;
+      vd.textContent = (diff > 0 ? 'Вы завысили на ' : 'Вы занизили на ') + fmt(Math.abs(diff)) + ' (' + rel.toFixed(0) + '%)';
+      vd.className = 'v-diff ' + (diff > 0 ? 'over' : 'under');
+    }
+    const badge = $('v-points');
+    badge.textContent = '+' + pts + ' ' + (pts % 10 === 1 && pts % 100 !== 11 ? 'балл' : (pts % 10 >= 2 && pts % 10 <= 4 && (pts % 100 < 12 || pts % 100 > 14) ? 'балла' : 'баллов')) + ' · ' + pointsWord(pts);
+    badge.className = 'points-badge ' + pointsClass(pts);
+    $('v-link').href = lot.link;
+
+    $('verdict').style.display = 'block';
+    $('btn-guess').style.display = 'none';
+    $('slider').disabled = true;
+    $('btn-next').style.display = 'block';
+    $('btn-next').textContent = (round === TOTAL_ROUNDS - 1) ? '🏆 Показать итоги' : 'Следующая квартира →';
+    $('verdict').scrollIntoView({behavior:'smooth', block:'nearest'});
+  });
+
+  $('btn-next').addEventListener('click', () => {
+    round++;
+    if (round < TOTAL_ROUNDS) showRound();
+    else showResults();
+  });
+
+  /* ---------- Итоги ---------- */
+  function showResults(){
+    const total = answers.reduce((s, a) => s + a.pts, 0);
+    const avgBias = answers.reduce((s, a) => s + (a.guess - a.real) / a.real, 0) / answers.length;
+    const avgPts = Math.round(total / answers.length);
+
+    let title, sub, emoji;
+    if (avgBias <= -BIAS_THRESHOLD){
+      title = 'Жадный студент';
+      emoji = '🎓';
+      sub = 'Вы стабильно называли цены ниже реальных. Бюджет у вас есть, а веры продавцам — нет.';
+    } else if (avgBias >= BIAS_THRESHOLD){
+      title = 'Транжира';
+      emoji = '💸';
+      sub = 'Вы стабильно завышали цены. Продавцы в Инте были бы только рады таким покупателям.';
+    } else {
+      title = 'Адекватный квартирант';
+      emoji = '🏅';
+      sub = 'Ваши оценки почти совпали с реальными ценами рынка. Эксперт по недвижимости из вас вышел отличный.';
+    }
+
+    $('r-emoji').textContent = emoji;
+    $('r-score').textContent = total;
+    $('r-title').textContent = title;
+    $('r-sub').textContent = sub;
+
+    const biasPct = (avgBias * 100).toFixed(0);
+    $('bias-strip').innerHTML =
+      'Средняя ошибка ваших оценок: <b>' + (avgBias > 0 ? '+' + biasPct + '%' : avgBias < 0 ? biasPct + '%' : '0%') + '</b> от реальной цены' +
+      (avgBias > 0 ? ' — в среднем вы <b>завышали</b>.' : avgBias < 0 ? ' — в среднем вы <b>занижали</b>.' : '.') +
+      ' Средний балл за раунд: <b>' + avgPts + '</b> из 100.';
+
+    const list = $('rounds-list');
+    list.innerHTML = '';
+    answers.forEach((a, i) => {
+      const row = document.createElement('div');
+      row.className = 'round-row';
+      row.innerHTML =
+        '<div class="num">' + (i + 1) + '</div>' +
+        '<div class="rd-info"><div class="rd-desc"></div><div class="rd-price">' +
+          fmtShort(a.real) + ' · ваша: ' + fmtShort(a.guess) + '</div></div>' +
+        '<div class="rd-pts">+' + a.pts + '</div>' +
+        '<a href="' + a.link + '" target="_blank" rel="noopener" aria-label="Открыть объявление">↗</a>';
+      row.querySelector('.rd-desc').textContent = a.desc;
+      list.appendChild(row);
+    });
+
+    show('screen-result');
+  }
+
+  /* ---------- Ленивая загрузка фото галереи ---------- */
+  function loadGalleryImage(){
+    const img = $('gal-track').querySelector('img:not([src]), img[src=""]');
+    if (img && img.dataset.src){
+      img.src = img.dataset.src;
+    }
+  }
+  // Подгружаем следующее фото при прокрутке галереи
+  $('gal-track').addEventListener('scroll', () => {
+    const track = $('gal-track');
+    const imgs = track.querySelectorAll('img');
+    const idx = Math.round(track.scrollLeft / track.clientWidth);
+    if (imgs[idx] && !imgs[idx].src && imgs[idx].dataset.src){
+      imgs[idx].src = imgs[idx].dataset.src;
+    }
+  }, {passive:true});
+
+  show('screen-start');
+})();
+</script>
+</body>
+</html>
